@@ -39,7 +39,7 @@ func get_hashed_password(rollno string) string {
 	return (hashed_password)
 
 }
-func write_details(name string, rollno string, password string) error {
+func WriteToDb(name string, rollno string, password string) error {
 	database, _ :=
 		sql.Open("sqlite3", "./database/user.db")
 
@@ -66,7 +66,9 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write(JsonRes)
 		return
 	}
-
+	resp := &serverResponse{
+		Message: "",
+	}
 	switch r.Method {
 
 	case "POST":
@@ -76,6 +78,7 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		} */
 		var user User
+
 		w.Header().Set("Content-Type", "application/json")
 		err := json.NewDecoder(r.Body).Decode(&user)
 		if err != nil {
@@ -91,9 +94,9 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 		password := user.Password
 		if rollno == "" || password == "" {
 			w.WriteHeader(http.StatusBadRequest)
-			resp := &serverResponse{
-				Message: "Roll No or Password Cannot be empty",
-			}
+
+			resp.Message = "Roll No or Password Cannot be empty"
+
 			JsonRes, _ := json.Marshal(resp)
 			w.Write(JsonRes)
 			return
@@ -103,22 +106,20 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			//log.Fatal(err)
 			w.WriteHeader(401)
-			resp := &serverResponse{
-				Message: "Server error",
-			}
+
+			resp.Message = "Server error"
+
 			JsonRes, _ := json.Marshal(resp)
 			w.Write(JsonRes)
 		}
 
-		write_err := write_details(name, rollno, string(hashed_password))
+		write_err := WriteToDb(name, rollno, string(hashed_password))
 
 		if write_err != nil {
 			//log.Printf("Body read error, %v", write_err)
 
 			w.WriteHeader(500) // Return 500 Internal Server Error.
-			resp := &serverResponse{
-				Message: "Roll Number must be unique",
-			}
+			resp.Message = "Roll no already exists"
 			JsonRes, _ := json.Marshal(resp)
 			w.Write(JsonRes)
 			return
@@ -128,17 +129,17 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusOK)
 		//Write json response back to response
-		resp := &serverResponse{
-			Message: "Your account has benn created. To login, go to /login",
-		}
+
+		resp.Message = "Your account has benn created. To login, go to /login"
+
 		JsonRes, _ := json.Marshal(resp)
 		w.Write(JsonRes)
 		return
 	default:
 		w.WriteHeader(http.StatusBadRequest)
-		resp := &serverResponse{
-			Message: "Only POST requests are supported",
-		}
+
+		resp.Message = "Only POST requests are supported"
+
 		JsonRes, _ := json.Marshal(resp)
 		w.Write(JsonRes)
 		return
@@ -149,10 +150,7 @@ func CreateToken(userRollNo string) (string, time.Time, error) {
 	var err error
 	//Creating Access Token
 
-	err1 := godotenv.Load()
-	if err1 != nil {
-		log.Fatal("Error loading .env file")
-	}
+	godotenv.Load()
 
 	atClaims := jwt.MapClaims{}
 	atClaims["authorized"] = true
@@ -170,10 +168,8 @@ func CreateToken(userRollNo string) (string, time.Time, error) {
 
 func VerifyToken(request_token string) (*jwt.Token, error) {
 	tokenString := request_token
-	err1 := godotenv.Load()
-	if err1 != nil {
-		log.Fatal("Error loading .env file")
-	}
+	godotenv.Load()
+
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		//Make sure that the token method conform to "SigningMethodHMAC"
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -212,6 +208,10 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+
+	resp := &serverResponse{
+		Message: "",
+	}
 	switch r.Method {
 
 	case "POST":
@@ -227,23 +227,28 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		rollno := user.Rollno
 		password := user.Password
 		hashedPassword := get_hashed_password(rollno)
-		//fmt.Println(hashedPassword)
-		// Comparing the password with the hash
-		if err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password)); err != nil {
-			w.WriteHeader(500) // send server error
-			resp := &serverResponse{
-				Message: "Password was incorrect",
-			}
+
+		if hashedPassword == "" {
+			w.WriteHeader(401)
+			resp.Message = "User does not exist"
 			JsonRes, _ := json.Marshal(resp)
 			w.Write(JsonRes)
 			return
 		}
+
+		// Comparing the password with the hash
+		if err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password)); err != nil {
+			w.WriteHeader(500) // send server error
+			resp.Message = "Password was incorrect"
+			JsonRes, _ := json.Marshal(resp)
+			w.Write(JsonRes)
+			return
+		}
+
 		token, expirationTime, err := CreateToken(rollno)
 		if err != nil {
 			w.WriteHeader(401)
-			resp := &serverResponse{
-				Message: "Server Error",
-			}
+			resp.Message = "Server Error"
 			JsonRes, _ := json.Marshal(resp)
 			w.Write(JsonRes)
 			return
@@ -259,17 +264,14 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusOK)
 
-		resp := &serverResponse{
-			Message: "Password Correct, you are logged in (Cookie set)",
-		}
+		resp.Message = "Password Correct, you are logged in (Cookie set)"
 		JsonRes, _ := json.Marshal(resp)
 		w.Write(JsonRes)
 		return
 	default:
 		w.WriteHeader(http.StatusBadRequest)
-		resp := &serverResponse{
-			Message: "Sorry, only POST requests are supported",
-		}
+
+		resp.Message = "Sorry, only POST requests are supported"
 		JsonRes, _ := json.Marshal(resp)
 		w.Write(JsonRes)
 		return
@@ -278,11 +280,12 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func secretPageHandler(w http.ResponseWriter, r *http.Request) {
+	resp := &serverResponse{
+		Message: "",
+	}
 	if r.URL.Path != "/secretpage" {
 		w.WriteHeader(404)
-		resp := &serverResponse{
-			Message: "404 Page not Found",
-		}
+		resp.Message = "404 Page not formed"
 		JsonRes, _ := json.Marshal(resp)
 		w.Write(JsonRes)
 		return
@@ -295,9 +298,7 @@ func secretPageHandler(w http.ResponseWriter, r *http.Request) {
 			if err == http.ErrNoCookie {
 				// If the cookie is not set, return an unauthorized status
 				w.WriteHeader(http.StatusUnauthorized)
-				resp := &serverResponse{
-					Message: "Access restricted, user not authorized",
-				}
+				resp.Message = "Access restricted, user not authorized"
 				JsonRes, _ := json.Marshal(resp)
 				w.Write(JsonRes)
 
@@ -312,24 +313,21 @@ func secretPageHandler(w http.ResponseWriter, r *http.Request) {
 		//fmt.Println(user_roll_no, "Hello")
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
-			resp := &serverResponse{
-				Message: "Access Unauthorized ",
-			}
+
+			resp.Message = "Access Unauthorized "
 			JsonRes, _ := json.Marshal(resp)
 			w.Write(JsonRes)
 			return
 		}
-		resp := &serverResponse{
-			Message: "Welcome to the secret page " + user_roll_no,
-		}
+
+		resp.Message = "Welcome to the secret page " + user_roll_no
 		JsonRes, _ := json.Marshal(resp)
 		w.Write(JsonRes)
 		return
 	default:
 		w.WriteHeader(http.StatusBadRequest)
-		resp := &serverResponse{
-			Message: "Only GET requests are supported ",
-		}
+
+		resp.Message = "Only GET requests are supported "
 		JsonRes, _ := json.Marshal(resp)
 		w.Write(JsonRes)
 	}
@@ -341,10 +339,5 @@ func main() {
 	http.HandleFunc("/login", loginHandler)
 	http.HandleFunc("/secretpage", secretPageHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
-
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
 
 }
