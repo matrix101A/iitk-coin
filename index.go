@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,9 +11,20 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/crypto/bcrypt"
 )
+
+type User struct {
+	Name     string `json:"name"`
+	Rollno   string `json:"rollno"`
+	Password string `json:"password"`
+}
+
+type serverResponse struct {
+	Message string `json:"message"`
+}
 
 func get_hashed_password(rollno string) string {
 	database, _ :=
@@ -23,11 +35,11 @@ func get_hashed_password(rollno string) string {
 
 	var hashed_password string
 	row.Scan(&hashed_password)
-	fmt.Println(hashed_password)
+	//fmt.Println(hashed_password)
 	return (hashed_password)
 
 }
-func write_details(name string, rollno string, password string, w http.ResponseWriter) error {
+func write_details(name string, rollno string, password string) error {
 	database, _ :=
 		sql.Open("sqlite3", "./database/user.db")
 
@@ -47,7 +59,11 @@ func write_details(name string, rollno string, password string, w http.ResponseW
 }
 func signupHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/signup" {
-		http.Error(w, "404 not found.", http.StatusNotFound)
+		resp := &serverResponse{
+			Message: "404 Page not found",
+		}
+		JsonRes, _ := json.Marshal(resp)
+		w.Write(JsonRes)
 		return
 	}
 
@@ -55,42 +71,89 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 
 	case "POST":
 		// Call ParseForm() to parse the raw query and update r.PostForm and r.Form.
-		if err := r.ParseForm(); err != nil {
+		/* if err := r.ParseForm(); err != nil {
 			fmt.Fprintf(w, "ParseForm() err: %v", err)
+			return
+		} */
+		var user User
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewDecoder(r.Body).Decode(&user)
+		if err != nil {
+			//fmt.Println(err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		name := r.FormValue("name")
-		rollno := r.FormValue("rollno")
-		password := r.FormValue("password")
+		//fmt.Println(user)
+
+		name := user.Name
+		rollno := user.Rollno
+		password := user.Password
+		if rollno == "" || password == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			resp := &serverResponse{
+				Message: "Roll No or Password Cannot be empty",
+			}
+			JsonRes, _ := json.Marshal(resp)
+			w.Write(JsonRes)
+			return
+		}
 
 		hashed_password, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		if err != nil {
-
-			log.Fatal(err)
+			//log.Fatal(err)
+			w.WriteHeader(401)
+			resp := &serverResponse{
+				Message: "Server error",
+			}
+			JsonRes, _ := json.Marshal(resp)
+			w.Write(JsonRes)
 		}
 
-		write_err := write_details(name, rollno, string(hashed_password), w)
+		write_err := write_details(name, rollno, string(hashed_password))
+
 		if write_err != nil {
-			log.Printf("Body read error, %v", write_err)
+			//log.Printf("Body read error, %v", write_err)
 
 			w.WriteHeader(500) // Return 500 Internal Server Error.
-			w.Write([]byte("Roll number must be unique "))
-
+			resp := &serverResponse{
+				Message: "Roll Number must be unique",
+			}
+			JsonRes, _ := json.Marshal(resp)
+			w.Write(JsonRes)
 			return
 		}
-		fmt.Println("Your account was created sucessfully ")
-		fmt.Fprintf(w, "Accont created sucessfully")
+
+		//fmt.Println("Your account was created sucessfully ")
+
+		w.WriteHeader(http.StatusOK)
+		//Write json response back to response
+		resp := &serverResponse{
+			Message: "Your account has benn created. To login, go to /login",
+		}
+		JsonRes, _ := json.Marshal(resp)
+		w.Write(JsonRes)
+		return
 	default:
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "Sorry, only GET and POST methods are supported.")
+		resp := &serverResponse{
+			Message: "Only POST requests are supported",
+		}
+		JsonRes, _ := json.Marshal(resp)
+		w.Write(JsonRes)
+		return
 	}
 }
 
-func CreateToken(userRollNo string) (string, error, time.Time) {
+func CreateToken(userRollNo string) (string, time.Time, error) {
 	var err error
 	//Creating Access Token
-	os.Setenv("ACCESS_SECRET", "thisisasecret") //this should be in an env file
+
+	err1 := godotenv.Load()
+	if err1 != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	atClaims := jwt.MapClaims{}
 	atClaims["authorized"] = true
 	atClaims["user_roll_no"] = userRollNo
@@ -98,21 +161,25 @@ func CreateToken(userRollNo string) (string, error, time.Time) {
 	atClaims["exp"] = expTime.Unix()
 
 	at := jwt.NewWithClaims(jwt.SigningMethodHS256, atClaims)
-	token, err := at.SignedString([]byte("thisisasecret"))
+	token, err := at.SignedString([]byte(os.Getenv("ACCESSKEY")))
 	if err != nil {
-		return "", err, time.Now()
+		return "", time.Now(), err
 	}
-	return token, nil, expTime
+	return token, expTime, err
 }
 
 func VerifyToken(request_token string) (*jwt.Token, error) {
 	tokenString := request_token
+	err1 := godotenv.Load()
+	if err1 != nil {
+		log.Fatal("Error loading .env file")
+	}
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		//Make sure that the token method conform to "SigningMethodHMAC"
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte("thisisasecret"), nil //enter secret key here
+		return []byte(os.Getenv("ACCESSKEY")), nil //enter secret key here
 	})
 	if err != nil {
 		return nil, err
@@ -137,46 +204,75 @@ func ExtractTokenMetadata(user_token string) (string, error) { //returns the rol
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/login" {
-		http.Error(w, "404 not found.", http.StatusNotFound)
+		resp := &serverResponse{
+			Message: "404 Page not found",
+		}
+		JsonRes, _ := json.Marshal(resp)
+		w.Write(JsonRes)
 		return
 	}
-
+	w.Header().Set("Content-Type", "application/json")
 	switch r.Method {
 
 	case "POST":
 
-		if err := r.ParseForm(); err != nil {
-			fmt.Fprintf(w, "ParseForm() err: %v", err)
-			w.WriteHeader(500) // log error
+		var user User
+
+		err := json.NewDecoder(r.Body).Decode(&user)
+		if err != nil {
+			//fmt.Println(err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		rollno := r.FormValue("rollno")
-		password := r.FormValue("password")
+		rollno := user.Rollno
+		password := user.Password
 		hashedPassword := get_hashed_password(rollno)
-		fmt.Println(hashedPassword)
+		//fmt.Println(hashedPassword)
 		// Comparing the password with the hash
 		if err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password)); err != nil {
 			w.WriteHeader(500) // send server error
-			w.Write([]byte("wrong Password"))
+			resp := &serverResponse{
+				Message: "Password was incorrect",
+			}
+			JsonRes, _ := json.Marshal(resp)
+			w.Write(JsonRes)
 			return
 		}
-		token, err, expirationTime := CreateToken(rollno)
+		token, expirationTime, err := CreateToken(rollno)
 		if err != nil {
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			w.Write([]byte(err.Error()))
+			w.WriteHeader(401)
+			resp := &serverResponse{
+				Message: "Server Error",
+			}
+			JsonRes, _ := json.Marshal(resp)
+			w.Write(JsonRes)
 			return
+
 		}
+
 		http.SetCookie(w, &http.Cookie{ // setting cookie for the user with expiration time
-			Name:    "token",
-			Value:   token,
-			Expires: expirationTime,
+			Name:     "token",
+			Value:    token,
+			Expires:  expirationTime,
+			HttpOnly: true,
 		})
+
 		w.WriteHeader(http.StatusOK)
 
-		w.Write([]byte("Password was correct!, You are logged in "))
+		resp := &serverResponse{
+			Message: "Password Correct, you are logged in (Cookie set)",
+		}
+		JsonRes, _ := json.Marshal(resp)
+		w.Write(JsonRes)
+		return
 	default:
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "Sorry, only  POST methods are supported.")
+		resp := &serverResponse{
+			Message: "Sorry, only POST requests are supported",
+		}
+		JsonRes, _ := json.Marshal(resp)
+		w.Write(JsonRes)
+		return
 	}
 
 }
@@ -184,10 +280,14 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 func secretPageHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/secretpage" {
 		w.WriteHeader(404)
-		fmt.Fprint(w, "Error 404 Page not found")
+		resp := &serverResponse{
+			Message: "404 Page not Found",
+		}
+		JsonRes, _ := json.Marshal(resp)
+		w.Write(JsonRes)
 		return
-
 	}
+	w.Header().Set("Content-Type", "application/json")
 	switch r.Method {
 	case "GET":
 		c, err := r.Cookie("token")
@@ -195,6 +295,12 @@ func secretPageHandler(w http.ResponseWriter, r *http.Request) {
 			if err == http.ErrNoCookie {
 				// If the cookie is not set, return an unauthorized status
 				w.WriteHeader(http.StatusUnauthorized)
+				resp := &serverResponse{
+					Message: "Access restricted, user not authorized",
+				}
+				JsonRes, _ := json.Marshal(resp)
+				w.Write(JsonRes)
+
 				return
 			}
 			// For any other type of error, return a bad request status
@@ -202,21 +308,43 @@ func secretPageHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		tokenFromUser := c.Value
-		user_roll_no, _ := ExtractTokenMetadata(tokenFromUser)
-		fmt.Println(user_roll_no, "Hello")
-
-		fmt.Fprint(w, "Welcome to the secret page "+user_roll_no)
+		user_roll_no, err := ExtractTokenMetadata(tokenFromUser)
+		//fmt.Println(user_roll_no, "Hello")
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			resp := &serverResponse{
+				Message: "Access Unauthorized ",
+			}
+			JsonRes, _ := json.Marshal(resp)
+			w.Write(JsonRes)
+			return
+		}
+		resp := &serverResponse{
+			Message: "Welcome to the secret page " + user_roll_no,
+		}
+		JsonRes, _ := json.Marshal(resp)
+		w.Write(JsonRes)
+		return
 	default:
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "Sorry, only GET  methods are supported.")
+		resp := &serverResponse{
+			Message: "Only GET requests are supported ",
+		}
+		JsonRes, _ := json.Marshal(resp)
+		w.Write(JsonRes)
 	}
 
 }
 func main() {
-	fmt.Println("yoy")
+
 	http.HandleFunc("/signup", signupHandler)
 	http.HandleFunc("/login", loginHandler)
 	http.HandleFunc("/secretpage", secretPageHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 
 }
