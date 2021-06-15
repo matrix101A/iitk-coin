@@ -1,32 +1,15 @@
 package handlers
 
 import (
-	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
+	"github.com/matrix101A/utils"
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func WriteToDb(name string, rollno string, password string) error {
-	database, _ :=
-		sql.Open("sqlite3", "./database/user.db")
-
-	statement, _ :=
-		database.Prepare("CREATE TABLE IF NOT EXISTS user (name TEXT,rollno TEXT PRIMARY KEY,password TEXT)")
-
-	statement.Exec()
-
-	statement, _ =
-		database.Prepare("INSERT INTO user (name,rollno,password) VALUES (?, ?, ?)")
-	_, err := statement.Exec(name, rollno, password)
-	if err != nil {
-		return err
-	}
-	return nil
-
-}
 func SignupHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/signup" {
 		resp := &serverResponse{
@@ -83,12 +66,12 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 			w.Write(JsonRes)
 		}
 
-		write_err := WriteToDb(name, rollno, string(hashed_password))
+		write_err := utils.WriteUserToDb(name, rollno, string(hashed_password))
 
 		if write_err != nil {
 			//log.Printf("Body read error, %v", write_err)
-
 			w.WriteHeader(500) // Return 500 Internal Server Error.
+			fmt.Println(write_err.Error())
 			resp.Message = "Roll no already exists"
 			JsonRes, _ := json.Marshal(resp)
 			w.Write(JsonRes)
@@ -101,7 +84,6 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 		//Write json response back to response
 
 		resp.Message = "Your account has benn created. To login, go to /login"
-
 		JsonRes, _ := json.Marshal(resp)
 		w.Write(JsonRes)
 		return

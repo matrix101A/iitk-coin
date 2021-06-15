@@ -2,46 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"os"
 
-	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/joho/godotenv"
+	"github.com/matrix101A/utils"
 	_ "github.com/mattn/go-sqlite3"
 )
-
-func VerifyToken(request_token string) (*jwt.Token, error) {
-	tokenString := request_token
-	godotenv.Load()
-
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		//Make sure that the token method conform to "SigningMethodHMAC"
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(os.Getenv("ACCESSKEY")), nil //enter secret key here
-	})
-	if err != nil {
-		return nil, err
-	}
-	return token, nil
-}
-
-func ExtractTokenMetadata(user_token string) (string, error) { //returns the roll no of the user
-	token, err := VerifyToken(user_token)
-	if err != nil {
-		return " ", err
-	}
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if ok {
-		roll_no, _ := claims["user_roll_no"].(string)
-		return roll_no, err
-	}
-
-	return " ", err
-
-}
 
 func SecretPageHandler(w http.ResponseWriter, r *http.Request) {
 	resp := &serverResponse{
@@ -73,7 +38,7 @@ func SecretPageHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		tokenFromUser := c.Value
-		user_roll_no, err := ExtractTokenMetadata(tokenFromUser)
+		user_roll_no, err := utils.ExtractTokenMetadata(tokenFromUser)
 		//fmt.Println(user_roll_no, "Hello")
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)

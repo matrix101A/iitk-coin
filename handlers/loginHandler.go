@@ -1,15 +1,10 @@
 package handlers
 
 import (
-	"database/sql"
 	"encoding/json"
 	"net/http"
-	"os"
-	"strconv"
-	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/joho/godotenv"
+	"github.com/matrix101A/utils"
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -24,39 +19,6 @@ type serverResponse struct {
 	Message string `json:"message"`
 }
 
-func Get_hashed_password(rollno string) string {
-	database, _ :=
-		sql.Open("sqlite3", "./database/user.db")
-	rollno_int, _ := strconv.Atoi(rollno)
-	sqlStatement := `SELECT password FROM user WHERE rollno= $1;`
-	row := database.QueryRow(sqlStatement, rollno_int)
-
-	var hashed_password string
-	row.Scan(&hashed_password)
-	//fmt.Println(hashed_password)
-	return (hashed_password)
-
-}
-
-func CreateToken(userRollNo string) (string, time.Time, error) {
-	var err error
-	//Creating Access Token
-
-	godotenv.Load()
-
-	atClaims := jwt.MapClaims{}
-	atClaims["authorized"] = true
-	atClaims["user_roll_no"] = userRollNo
-	expTime := time.Now().Add(time.Minute * 15)
-	atClaims["exp"] = expTime.Unix()
-
-	at := jwt.NewWithClaims(jwt.SigningMethodHS256, atClaims)
-	token, err := at.SignedString([]byte(os.Getenv("ACCESSKEY")))
-	if err != nil {
-		return "", time.Now(), err
-	}
-	return token, expTime, err
-}
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/login" {
 		resp := &serverResponse{
@@ -85,7 +47,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		rollno := user.Rollno
 		password := user.Password
-		hashedPassword := Get_hashed_password(rollno)
+		hashedPassword := utils.Get_hashed_password(rollno)
 
 		if hashedPassword == "" {
 			w.WriteHeader(401)
@@ -104,7 +66,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		token, expirationTime, err := CreateToken(rollno)
+		token, expirationTime, err := utils.CreateToken(rollno)
 		if err != nil {
 			w.WriteHeader(401)
 			resp.Message = "Server Error"
