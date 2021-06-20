@@ -53,11 +53,7 @@ func WriteCoinsToDb(rollno string, numberOfCoins string) error {
 	if e != nil {
 		return e
 	}
-
-	Db, _ :=
-		sql.Open("sqlite3", "./database/user.db")
 	_, err := GetUserFromRollNo(rollno)
-
 	if err != nil {
 		return err
 	}
@@ -80,11 +76,19 @@ func TransferCoinDb(firstRollno string, secondRollno string, transferAmount int)
 	if firstRollno == secondRollno {
 		return nil
 	}
-	db, _ := sql.Open("sqlite3", "./database/user.db")
+	_, err := GetUserFromRollNo(firstRollno)
+	if err != nil {
+		return errors.New("user " + firstRollno + " not present ")
+	}
+	_, err = GetUserFromRollNo(secondRollno)
+	if err != nil {
+		return errors.New("user " + secondRollno + " not present ")
+	}
+
 	var options = sql.TxOptions{
 		Isolation: sql.LevelSerializable,
 	}
-	tx, err := db.BeginTx(context.Background(), &options)
+	tx, err := Db.BeginTx(context.Background(), &options)
 	if err != nil {
 		_ = tx.Rollback()
 		log.Fatal(err)
@@ -92,7 +96,7 @@ func TransferCoinDb(firstRollno string, secondRollno string, transferAmount int)
 	}
 
 	res, execErr := tx.Exec("UPDATE bank SET coins = coins - ? WHERE rollno=? AND coins - ? >= 0", transferAmount, firstRollno, transferAmount)
-	//res, execErr := tx.Exec("UPDATE bank SET coins = ? WHERE rollno= ?;", firstUserCoins, firstRollno)
+
 	rowsAffected, _ := res.RowsAffected()
 	if execErr != nil || rowsAffected != 1 {
 		_ = tx.Rollback()
@@ -106,7 +110,7 @@ func TransferCoinDb(firstRollno string, secondRollno string, transferAmount int)
 	}
 
 	res, execErr = tx.Exec("UPDATE bank SET coins = coins + ? WHERE rollno=? ", transferAmount, secondRollno)
-	//res, execErr = tx.Exec("UPDATE bank SET coins = ? WHERE rollno= ?;", secondUserCoins, secondRollno)
+
 	rowsAffected, _ = res.RowsAffected()
 	if execErr != nil || rowsAffected != 1 {
 		_ = tx.Rollback()

@@ -41,7 +41,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 		err := json.NewDecoder(r.Body).Decode(&user)
 		if err != nil {
-			//fmt.Println(err)
+
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}

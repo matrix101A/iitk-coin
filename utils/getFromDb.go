@@ -15,7 +15,7 @@ func Get_hashed_password(rollno string) string {
 
 	var hashed_password string
 	row.Scan(&hashed_password)
-	//fmt.Println(hashed_password)
+
 	return (hashed_password)
 
 }
@@ -31,7 +31,7 @@ func GetCoinsFromRollNo(rollno string) (int, error) {
 
 	var coins int
 	err := row.Scan(&coins)
-	//fmt.Println(hashed_password)
+
 	if err != nil {
 		return 0, err
 	}
@@ -44,7 +44,7 @@ func GetUserFromRollNo(rollno string) (*sql.Row, error) {
 	sqlStatement := `SELECT name FROM user WHERE rollno= $1;`
 	row := Db.QueryRow(sqlStatement, rollno)
 	err := row.Scan(&rollno)
-	//fmt.Println(hashed_password)
+
 	if err != nil {
 		return nil, err
 	}

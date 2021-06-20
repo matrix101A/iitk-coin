@@ -37,7 +37,7 @@ func TransferCoinHandler(w http.ResponseWriter, r *http.Request) {
 
 		err := json.NewDecoder(r.Body).Decode(&transferData)
 		if err != nil {
-			//fmt.Println(err)
+
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}

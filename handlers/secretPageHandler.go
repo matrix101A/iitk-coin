@@ -39,7 +39,7 @@ func SecretPageHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		tokenFromUser := c.Value
 		user_roll_no, err := utils.ExtractTokenMetadata(tokenFromUser)
-		//fmt.Println(user_roll_no, "Hello")
+
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
 

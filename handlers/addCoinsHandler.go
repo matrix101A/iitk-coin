@@ -38,7 +38,7 @@ func AddCoinsHandler(w http.ResponseWriter, r *http.Request) {
 
 		err := json.NewDecoder(r.Body).Decode(&coinsData)
 		if err != nil {
-			//fmt.Println(err)
+
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -65,7 +65,7 @@ func AddCoinsHandler(w http.ResponseWriter, r *http.Request) {
 
 		err = utils.WriteCoinsToDb(rollno, numberOfCoins)
 		if err != nil {
-			w.WriteHeader(500)
+
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			fmt.Fprintf(w, " -User not found")
 			return
