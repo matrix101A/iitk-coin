@@ -55,7 +55,6 @@ func TransferCoinHandler(w http.ResponseWriter, r *http.Request) {
 
 		err = utils.TransferCoinDb(firstRollno, secondRollno, transferAmount) // withdraw from first user and transfer to second
 		if err != nil {
-			w.WriteHeader(500)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
