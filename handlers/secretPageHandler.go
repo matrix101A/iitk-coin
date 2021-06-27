@@ -38,7 +38,7 @@ func SecretPageHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		tokenFromUser := c.Value
-		user_roll_no, err := utils.ExtractTokenMetadata(tokenFromUser)
+		user_roll_no, Acctype, err := utils.ExtractTokenMetadata(tokenFromUser)
 
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -49,7 +49,7 @@ func SecretPageHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		resp.Message = "Welcome to the secret page " + user_roll_no
+		resp.Message = "Welcome to the secret page " + user_roll_no + " " + Acctype
 		JsonRes, _ := json.Marshal(resp)
 		w.Write(JsonRes)
 		return

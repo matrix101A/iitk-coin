@@ -19,6 +19,9 @@ func main() {
 	http.HandleFunc("/addcoins", handlers.AddCoinsHandler)
 	http.HandleFunc("/transfercoin", handlers.TransferCoinHandler)
 	http.HandleFunc("/getcoins", handlers.GetCoinsHandler)
+	http.HandleFunc("/redeem", handlers.RedeemCoinsHandler)
+	http.HandleFunc("/additems", handlers.AddItemsHandler)
+
 	err := utils.ConnectToDb()
 	if err != nil {
 		log.Fatal(err.Error())

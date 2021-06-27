@@ -9,7 +9,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func CreateToken(userRollNo string) (string, time.Time, error) {
+func CreateToken(userRollNo string, userType string) (string, time.Time, error) {
 	var err error
 	//Creating Access Token
 
@@ -17,6 +17,7 @@ func CreateToken(userRollNo string) (string, time.Time, error) {
 
 	atClaims := jwt.MapClaims{}
 	atClaims["authorized"] = true
+	atClaims["accountType"] = userType
 	atClaims["user_roll_no"] = userRollNo
 	expTime := time.Now().Add(time.Minute * 15)
 	atClaims["exp"] = expTime.Unix()

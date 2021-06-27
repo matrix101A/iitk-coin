@@ -4,20 +4,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/matrix101A/utils"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type Bank struct {
-	Rollno  string `json:"rollno"`
-	Coins   string `json:"coins"`
-	Remarks string `json:"remarks"`
+type ItemsData struct {
+	Item_id int    `json:"itemid"`
+	Cost    string `json:"cost"`
+	Number  int    `json:"number"`
 }
 
-func AddCoinsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/addcoins" {
+func AddItemsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/additems" {
 		resp := &serverResponse{
 			Message: "404 Page not found",
 		}
@@ -49,57 +48,29 @@ func AddCoinsHandler(w http.ResponseWriter, r *http.Request) {
 
 	case "POST":
 
-		var coinsData Bank
+		var itemData ItemsData
 
-		err := json.NewDecoder(r.Body).Decode(&coinsData)
+		err := json.NewDecoder(r.Body).Decode(&itemData)
 		if err != nil {
 
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		rollno := coinsData.Rollno
+		item_id := itemData.Item_id
 
-		numberOfCoins := coinsData.Coins
+		cost := itemData.Cost
+		number := itemData.Number
 
-		remarks := coinsData.Remarks
-
-		if rollno == "" {
-			w.WriteHeader(401)
-			resp.Message = "Please enter a roll number"
-			JsonRes, _ := json.Marshal(resp)
-			w.Write(JsonRes)
-			return
-		}
-
-		_, userAccType, _ := utils.GetUserFromRollNo(rollno)
-		if userAccType == "CTM " && Acctype == "CTM" {
-			http.Error(w, "Unauthorized only admins are alowed ", http.StatusUnauthorized)
-			return
-		}
-		if userAccType == "admin" {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
 		w.Header().Set("Content-Type", "application/json")
 
-		_, err = strconv.ParseFloat(numberOfCoins, 32)
-		if err != nil {
-			w.WriteHeader(401)
-			resp.Message = "Coins should be valid number "
-			JsonRes, _ := json.Marshal(resp)
-			w.Write(JsonRes)
-			return
-		}
-
-		err, errorMessage := utils.WriteCoinsToDb(rollno, numberOfCoins, remarks)
+		message, err := utils.WriteItemsToDb(item_id, cost, number)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
-			fmt.Fprintf(w, errorMessage)
+			fmt.Fprintf(w, message)
 			return
 		}
-
 		w.WriteHeader(http.StatusOK)
-		resp.Message = errorMessage + coinsData.Coins + " Coins added to user " + coinsData.Rollno
+		resp.Message = message + " item added to database "
 		JsonRes, _ := json.Marshal(resp)
 		w.Write(JsonRes)
 		return

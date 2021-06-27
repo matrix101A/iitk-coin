@@ -38,11 +38,12 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 
 		name := user.Name
 		rollno := user.Rollno
+		accountType := user.Account_type
 		password := user.Password
-		if rollno == "" || password == "" {
+		if rollno == "" || password == "" || accountType == "" {
 			w.WriteHeader(http.StatusBadRequest)
 
-			resp.Message = "Roll No or Password Cannot be empty"
+			resp.Message = "Roll No, Password or account type  Cannot be empty"
 
 			JsonRes, _ := json.Marshal(resp)
 			w.Write(JsonRes)
@@ -60,7 +61,7 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 			w.Write(JsonRes)
 		}
 
-		write_err := utils.WriteUserToDb(name, rollno, string(hashed_password))
+		write_err := utils.WriteUserToDb(name, rollno, string(hashed_password), accountType)
 
 		if write_err != nil {
 

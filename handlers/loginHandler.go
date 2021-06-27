@@ -10,9 +10,10 @@ import (
 )
 
 type User struct {
-	Name     string `json:"name"`
-	Rollno   string `json:"rollno"`
-	Password string `json:"password"`
+	Name         string `json:"name"`
+	Rollno       string `json:"rollno"`
+	Password     string `json:"password"`
+	Account_type string `json:"account_type"`
 }
 
 type serverResponse struct {
@@ -41,7 +42,6 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 		err := json.NewDecoder(r.Body).Decode(&user)
 		if err != nil {
-
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -65,8 +65,9 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 			w.Write(JsonRes)
 			return
 		}
+		_, accountType, _ := utils.GetUserFromRollNo(rollno)
 
-		token, expirationTime, err := utils.CreateToken(rollno)
+		token, expirationTime, err := utils.CreateToken(rollno, accountType)
 		if err != nil {
 			w.WriteHeader(401)
 			resp.Message = "Server Error"
