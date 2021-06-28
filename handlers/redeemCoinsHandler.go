@@ -70,7 +70,8 @@ func RedeemCoinsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		resp.Message = "Sucessfully redeemed item " + fmt.Sprintf("%d", item_id) + " Coins remaining are " + fmt.Sprintf("%.2f", coins)
+
+		resp.Message = "Sucessfully redeemed item " + fmt.Sprintf("%d", item_id) + " .Coins remaining are " + fmt.Sprintf("%.2f", coins)
 		JsonRes, _ := json.Marshal(resp)
 		w.Write(JsonRes)
 		return

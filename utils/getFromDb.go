@@ -65,3 +65,18 @@ func getItemFromId(item_id int) (float64, int, error) {
 	}
 	return cost, available, nil
 }
+
+func GetNumEvents(rollno string) (int, error) { // returns the number of awards given to a user
+	var number int
+
+	sqlStatement := `SELECT COUNT(user)
+	FROM rewards
+	WHERE user = $1;`
+
+	row := Db.QueryRow(sqlStatement, rollno)
+	err := row.Scan(&number)
+	if err != nil {
+		return 0, err
+	}
+	return number, nil
+}

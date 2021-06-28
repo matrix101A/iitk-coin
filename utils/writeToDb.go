@@ -17,12 +17,8 @@ var Options = sql.TxOptions{
 }
 
 func WriteUserToDb(name string, rollno string, password string, account_type string) error {
+
 	statement, _ :=
-		Db.Prepare("CREATE TABLE IF NOT EXISTS user (name TEXT,rollno TEXT PRIMARY KEY,password TEXT)")
-
-	statement.Exec()
-
-	statement, _ =
 		Db.Prepare("INSERT INTO user (name,rollno,password,account_type) VALUES (?, ?, ?, ?)")
 	_, err := statement.Exec(name, rollno, password, account_type)
 	if err != nil {
@@ -113,8 +109,8 @@ func TransferCoinDb(firstRollno string, secondRollno string, transferAmount floa
 		return err, 0
 	}
 
-	batch1 := firstRollno[0:3]
-	batch2 := secondRollno[0:3]
+	batch1 := firstRollno[0:2]
+	batch2 := secondRollno[0:2]
 	var taxRate float32 = 0.02
 	if batch1 != batch2 {
 		taxRate = 0.33
@@ -159,6 +155,11 @@ func TransferCoinDb(firstRollno string, secondRollno string, transferAmount floa
 
 func RedeemCoinsDb(roll_no string, item_id int) (float64, error) { //convert this into a transaction and add eror handling
 	// Check if the item id is valid and obtain the coist of the item
+
+	numEvents, _ := GetNumEvents(roll_no)
+	if numEvents < MinEvents {
+		return 0, errors.New("You need to participate in at least " + strconv.Itoa(MinEvents) + " events to clam a reward ")
+	}
 	cost, available, err := getItemFromId(item_id)
 	if err != nil {
 		return 0, err

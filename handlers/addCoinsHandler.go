@@ -72,7 +72,7 @@ func AddCoinsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		_, userAccType, _ := utils.GetUserFromRollNo(rollno)
-		if userAccType == "CTM " && Acctype == "CTM" {
+		if userAccType == "CTM" && Acctype == "CTM" {
 			http.Error(w, "Unauthorized only admins are alowed ", http.StatusUnauthorized)
 			return
 		}
