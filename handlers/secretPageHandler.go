@@ -27,7 +27,7 @@ func SecretPageHandler(w http.ResponseWriter, r *http.Request) {
 			if err == http.ErrNoCookie {
 				// If the cookie is not set, return an unauthorized status
 				w.WriteHeader(http.StatusUnauthorized)
-				resp.Message = "Access restricted, user not authorized"
+				resp.Message = "User not logged in"
 				JsonRes, _ := json.Marshal(resp)
 				w.Write(JsonRes)
 

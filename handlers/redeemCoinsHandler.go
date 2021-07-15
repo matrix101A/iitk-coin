@@ -28,7 +28,7 @@ func RedeemCoinsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err == http.ErrNoCookie {
 			// If the cookie is not set, return an unauthorized status
-			http.Error(w, "", http.StatusUnauthorized)
+			http.Error(w, "User not logged in", http.StatusUnauthorized)
 			return
 		}
 	}
@@ -71,7 +71,7 @@ func RedeemCoinsHandler(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusOK)
 
-		resp.Message = "Sucessfully redeemed item " + fmt.Sprintf("%d", item_id) + " .Coins remaining are " + fmt.Sprintf("%.2f", coins)
+		resp.Message = "Your resquest is awaiting confirmatino for item " + fmt.Sprintf("%d", item_id) + " .Coins remaining after redeem will be  " + fmt.Sprintf("%.2f", coins)
 		JsonRes, _ := json.Marshal(resp)
 		w.Write(JsonRes)
 		return

@@ -22,7 +22,7 @@ func GetCoinsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err == http.ErrNoCookie {
 			// If the cookie is not set, return an unauthorized status
-			http.Error(w, "", http.StatusUnauthorized)
+			http.Error(w, "User not logged in", http.StatusUnauthorized)
 			return
 		}
 	}

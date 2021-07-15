@@ -51,9 +51,11 @@ func ConnectToDb() error {
 	statement.Exec()
 
 	statement, _ = Db.Prepare(`CREATE TABLE IF NOT EXISTS redeems (
+		id   INTEGER PRIMARY KEY AUTOINCREMENT,
 		user TEXT     NOT NULL,
 		item          REFERENCES items (id),
-		time DATETIME
+		time DATETIME,
+		status TEXT
 	);
 	`)
 	statement.Exec()

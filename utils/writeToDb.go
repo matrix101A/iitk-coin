@@ -172,45 +172,20 @@ func RedeemCoinsDb(roll_no string, item_id int) (float64, error) { //convert thi
 	if err != nil {
 		return 0, errors.New("user " + roll_no + " not present ")
 	}
-	var options = sql.TxOptions{
-		Isolation: sql.LevelSerializable,
-	}
-	tx, err := Db.BeginTx(context.Background(), &options)
-	if err != nil {
-		_ = tx.Rollback()
-		log.Fatal(err)
-		return 0, err
-	}
-	res, err := tx.Exec(`UPDATE bank SET coins = coins - ? WHERE rollno= ? AND coins - ? >=0 `, cost, roll_no, cost)
-	rowsAffected, _ := res.RowsAffected()
-	if err != nil || rowsAffected != 1 {
-		tx.Rollback()
-		if err != nil {
-			return 0, err
-		}
+
+	coins, _ := GetCoinsFromRollNo(roll_no)
+	if coins < cost {
 		return 0, errors.New("insufficient coins to claim this item ")
 	}
-	res, err = tx.Exec(`UPDATE items SET available = available -1 WHERE id = ? `, item_id)
-	rowsAffected, _ = res.RowsAffected()
-	if err != nil || rowsAffected != 1 {
-		tx.Rollback()
-		if err != nil {
-			return 0, err
-		}
-		return 0, errors.New("error occured while transaction please try later ")
-	}
-	_, err = tx.Exec(`INSERT INTO redeems (user,item,time) VALUES (?,?,?)`, roll_no, item_id, time.Now())
+	status := "pending"
+	statement, _ :=
+		Db.Prepare(`INSERT INTO redeems (user,item,time,status) VALUES ($1,$2,$3,$4) `)
+	_, err = statement.Exec(roll_no, item_id, time.Now(), status)
 	if err != nil {
-		tx.Rollback()
-		log.Fatal(err)
 		return 0, err
 	}
-	if err = tx.Commit(); err != nil {
-		return 0, err
-	}
-	coins, _ := GetCoinsFromRollNo(roll_no)
+	return coins - cost, nil
 
-	return coins, err
 }
 
 func WriteItemsToDb(item_id int, cost string, number int) (string, error) { // cpnvert this into a transaction
@@ -232,6 +207,82 @@ func WriteItemsToDb(item_id int, cost string, number int) (string, error) { // c
 	if err = tx.Commit(); err != nil {
 		return "", err
 	}
-	return "success", e
+	return "success", nil
 
+}
+
+func RespondRedeemDb(request_id int, action string) (string, error) { //convert this into a transaction and add eror handling
+	// Check if the item id is valid and obtain the coist of the item
+
+	roll_no, item_id, status, err := GetItemFromRequest(request_id)
+	if status != "pending" {
+		return "Their is no such pending request", nil
+
+	}
+	if err != nil {
+		return "", err
+	}
+	cost, available, err := getItemFromId(item_id)
+	if err != nil {
+		return "", err
+	}
+	if available == 0 {
+		return "", errors.New("item not available You can not accept this request now , try later")
+	}
+
+	coins, _ := GetCoinsFromRollNo(roll_no)
+	if coins < cost {
+		return "", errors.New("insufficient coins to claim this item ")
+	}
+	if action == "accept" {
+		var options = sql.TxOptions{
+			Isolation: sql.LevelSerializable,
+		}
+		tx, err := Db.BeginTx(context.Background(), &options)
+		if err != nil {
+			_ = tx.Rollback()
+			log.Fatal(err)
+			return "", err
+		}
+
+		res, err := tx.Exec(`UPDATE bank SET coins = coins - ? WHERE rollno= ? AND coins - ? >=0 `, cost, roll_no, cost)
+		rowsAffected, _ := res.RowsAffected()
+		if err != nil || rowsAffected != 1 {
+			tx.Rollback()
+			if err != nil {
+				return "", err
+			}
+			return "", errors.New("insufficient coins to claim this item ")
+		}
+		res, err = tx.Exec(`UPDATE items SET available = available -1 WHERE id = ? `, item_id)
+		rowsAffected, _ = res.RowsAffected()
+		if err != nil || rowsAffected != 1 {
+			tx.Rollback()
+			if err != nil {
+				return "", err
+			}
+			return "", errors.New("error occured while transaction please try later ")
+		}
+
+		_, err = tx.Exec(`UPDATE redeems SET status = $1 where id = $2`, action, request_id)
+		if err != nil {
+			tx.Rollback()
+			log.Fatal(err)
+			return "", err
+		}
+		if err = tx.Commit(); err != nil {
+			return "", err
+		}
+		return "Item redeemed sucessfully", nil
+	}
+	if action == "reject" {
+		_, err = Db.Exec(`UPDATE redeems SET status = $1 where id = $2`, action, request_id)
+		if err != nil {
+			return "error", err
+		}
+		return "Request rejected", nil
+
+	}
+	e := errors.New("you may only accept or reject ")
+	return "", e
 }

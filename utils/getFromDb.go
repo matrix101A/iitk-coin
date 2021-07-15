@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"database/sql"
+	"fmt"
 	"strconv"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -79,4 +81,33 @@ func GetNumEvents(rollno string) (int, error) { // returns the number of awards 
 		return 0, err
 	}
 	return number, nil
+}
+
+func GetPendingRedeems() (*sql.Rows, error) { // returns the number of awards given to a user
+
+	sqlStatement := `SELECT id , user , item FROM redeems WHERE status = "pending"	`
+
+	rows, err := Db.Query(sqlStatement, 3)
+	if err != nil {
+		return nil, err
+	}
+
+	return rows, nil
+
+}
+
+func GetItemFromRequest(requestId int) (string, int, string, error) {
+
+	sqlStatement := `SELECT user,item,status FROM redeems WHERE id= $1 ;`
+	row := Db.QueryRow(sqlStatement, requestId)
+	var userName string
+	var itemId int
+	var status string
+	err := row.Scan(&userName, &itemId, &status)
+	if err != nil {
+		fmt.Println(err.Error())
+
+		return "", 0, "", err
+	}
+	return userName, itemId, status, nil
 }

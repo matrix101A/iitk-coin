@@ -21,6 +21,8 @@ func main() {
 	http.HandleFunc("/getcoins", handlers.GetCoinsHandler)
 	http.HandleFunc("/redeem", handlers.RedeemCoinsHandler)
 	http.HandleFunc("/additems", handlers.AddItemsHandler)
+	http.HandleFunc("/pendingredeems", handlers.PendingRedeemsHandler)
+	http.HandleFunc("/respondredeem", handlers.RespondRedeemHandler)
 
 	err := utils.ConnectToDb()
 	if err != nil {
