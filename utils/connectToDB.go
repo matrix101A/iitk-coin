@@ -18,7 +18,7 @@ func ConnectToDb() error {
 	godotenv.Load()
 	MaxCoins, _ = strconv.ParseFloat(os.Getenv("MAXCOINS"), 32)
 	MinEvents, _ = strconv.Atoi(os.Getenv("MINEVENTS"))
-
+	_ = os.Mkdir("./database", os.ModeDir)
 	Db, err = sql.Open("sqlite3", "./database/user.db")
 
 	statement, _ := Db.Prepare(`CREATE TABLE IF NOT EXISTS user (
